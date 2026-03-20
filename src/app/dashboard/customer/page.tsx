@@ -1,13 +1,28 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
-import DeleteButton from '@/components/DeleteButton';
 
-export default async function ProductPage() {
+export default async function CustomersPage() {
   const supabase = await createClient();
-  const { data: products } = await supabase
-    .from('products')
-    .select('*')
+
+  const { data: customers } = await supabase
+    .from('customers')
+    .select(
+      `
+      *,
+      orders ( total )
+    `
+    )
     .order('created_at', { ascending: false });
+
+  const customersWithStats = customers?.map((customer) => ({
+    ...customer,
+    orderCount: customer.orders?.length || 0,
+    totalSpent:
+      customer.orders?.reduce(
+        (sum: number, order: any) => sum + (order.total || 0),
+        0
+      ) || 0
+  }));
 
   return (
     <div style={{ padding: '24px' }}>
@@ -19,19 +34,7 @@ export default async function ProductPage() {
           marginBottom: '24px'
         }}
       >
-        <h1 style={{ fontSize: '24px', fontWeight: 'bold' }}>Products</h1>
-        <Link
-          href='/dashboard/product/new'
-          style={{
-            backgroundColor: '#f97316',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '4px',
-            textDecoration: 'none'
-          }}
-        >
-          Add Product
-        </Link>
+        <h1 style={{ fontSize: '24px', fontWeight: 'bold' }}>Customers</h1>
       </div>
 
       <div
@@ -70,7 +73,7 @@ export default async function ProductPage() {
                   color: '#6b7280'
                 }}
               >
-                Category
+                Email
               </th>
               <th
                 style={{
@@ -81,7 +84,7 @@ export default async function ProductPage() {
                   color: '#6b7280'
                 }}
               >
-                Price
+                Phone
               </th>
               <th
                 style={{
@@ -92,7 +95,29 @@ export default async function ProductPage() {
                   color: '#6b7280'
                 }}
               >
-                Stock
+                Orders
+              </th>
+              <th
+                style={{
+                  padding: '12px 16px',
+                  textAlign: 'left',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#6b7280'
+                }}
+              >
+                Total Spent
+              </th>
+              <th
+                style={{
+                  padding: '12px 16px',
+                  textAlign: 'left',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#6b7280'
+                }}
+              >
+                Joined
               </th>
               <th
                 style={{
@@ -108,37 +133,40 @@ export default async function ProductPage() {
             </tr>
           </thead>
           <tbody>
-            {products?.map((product) => (
+            {customersWithStats?.map((customer) => (
               <tr
-                key={product.id}
+                key={customer.id}
                 style={{ borderBottom: '1px solid #e5e7eb' }}
               >
-                <td style={{ padding: '12px 16px' }}>{product.name}</td>
-                <td style={{ padding: '12px 16px' }}>{product.category}</td>
+                <td style={{ padding: '12px 16px' }}>{customer.name || '—'}</td>
+                <td style={{ padding: '12px 16px' }}>{customer.email}</td>
                 <td style={{ padding: '12px 16px' }}>
-                  ₦{product.price.toLocaleString()}
+                  {customer.phone || '—'}
                 </td>
-                <td style={{ padding: '12px 16px' }}>{product.stock}</td>
+                <td style={{ padding: '12px 16px' }}>{customer.orderCount}</td>
                 <td style={{ padding: '12px 16px' }}>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <Link
-                      href={`/dashboard/product/${product.id}/edit`}
-                      style={{ color: '#3b82f6', textDecoration: 'none' }}
-                    >
-                      Edit
-                    </Link>
-                    <DeleteButton productId={product.id} />
-                  </div>
+                  ₦{customer.totalSpent.toLocaleString()}
+                </td>
+                <td style={{ padding: '12px 16px' }}>
+                  {new Date(customer.created_at).toLocaleDateString()}
+                </td>
+                <td style={{ padding: '12px 16px' }}>
+                  <Link
+                    href={`/dashboard/customer/${customer.id}`}
+                    style={{ color: '#3b82f6', textDecoration: 'none' }}
+                  >
+                    View
+                  </Link>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {!products?.length && (
+        {!customers?.length && (
           <div
             style={{ padding: '32px', textAlign: 'center', color: '#6b7280' }}
           >
-            No products found
+            No customers found
           </div>
         )}
       </div>
