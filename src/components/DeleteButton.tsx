@@ -27,7 +27,7 @@ export default function DeleteButton({ productId }: DeleteButtonProps) {
         border: 'none',
         color: '#ef4444',
         cursor: isPending ? 'not-allowed' : 'pointer',
-        opacity: isPending ? 0.5 : 1
+        opacity: isPending ? 0.5 : 1,
       }}
     >
       {isPending ? 'Deleting...' : 'Delete'}

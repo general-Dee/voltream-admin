@@ -10,7 +10,7 @@ export default function Navigation() {
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/dashboard/product', label: 'Products' },
     { href: '/dashboard/order', label: 'Orders' },
-    { href: '/dashboard/customer', label: 'Customers' }
+    { href: '/dashboard/customer', label: 'Customers' },
   ];
 
   const isActive = (path: string) => pathname === path;
@@ -26,7 +26,7 @@ export default function Navigation() {
             fontWeight: '500',
             color: isActive(item.href) ? '#f97316' : '#374151',
             textDecoration: 'none',
-            transition: 'color 0.2s'
+            transition: 'color 0.2s',
           }}
           onMouseEnter={(e) => {
             if (!isActive(item.href)) e.currentTarget.style.color = '#f97316';

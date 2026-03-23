@@ -25,7 +25,7 @@ export default function SignOutButton() {
         fontSize: '0.875rem',
         fontWeight: '500',
         cursor: 'pointer',
-        transition: 'background-color 0.2s'
+        transition: 'background-color 0.2s',
       }}
       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#ea580c')}
       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f97316')}
