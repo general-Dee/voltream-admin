@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 
+export const dynamic = 'force-dynamic';
+
 export default async function RootPage() {
   try {
     const supabase = await createClient();
@@ -16,7 +18,6 @@ export default async function RootPage() {
     if (err.digest === 'NEXT_REDIRECT') {
       throw err;
     }
-    // Otherwise, show a user-friendly error
     console.error('Root page error:', err);
     return (
       <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
