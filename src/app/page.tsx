@@ -12,8 +12,12 @@ export default async function RootPage() {
       redirect('/login');
     }
   } catch (err: any) {
+    // If the error is a redirect, let Next.js handle it
+    if (err.digest === 'NEXT_REDIRECT') {
+      throw err;
+    }
+    // Otherwise, show a user-friendly error
     console.error('Root page error:', err);
-    // Display the error message on the page for debugging
     return (
       <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
         <h1>Error loading page</h1>
