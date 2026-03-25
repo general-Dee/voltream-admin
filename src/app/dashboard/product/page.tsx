@@ -19,11 +19,10 @@ export default async function ProductPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const supabase = await createClient();
 
-  // Get current page (default 1)
   const currentPage = parseInt(params.page || '1', 10);
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
-  // Build the query
+  // Build the base query with filters
   let query = supabase.from('products').select('*', { count: 'exact' });
 
   if (params.search) {
@@ -39,11 +38,10 @@ export default async function ProductPage({ searchParams }: PageProps) {
     query = query.lte('price', parseFloat(params.maxPrice));
   }
 
-  // Get total count
+  // Get total count and paginated data
   const { count: totalCount } = await query;
   const totalPages = Math.ceil((totalCount || 0) / ITEMS_PER_PAGE);
 
-  // Fetch paginated products
   const { data: products } = await query
     .order('created_at', { ascending: false })
     .range(offset, offset + ITEMS_PER_PAGE - 1);
@@ -58,18 +56,18 @@ export default async function ProductPage({ searchParams }: PageProps) {
     ? categories.filter((item, index, self) => self.findIndex(i => i.main_category === item.main_category) === index)
     : [];
 
-  // Helper to build pagination URLs with filters
+  // Helper to build pagination URLs while keeping filters
   const buildPaginationUrl = (page: number) => {
-    const params = new URLSearchParams();
-    if (params.search) params.set('search', params.search);
-    if (params.main_category && params.main_category !== 'all') params.set('main_category', params.main_category);
-    if (params.minPrice) params.set('minPrice', params.minPrice);
-    if (params.maxPrice) params.set('maxPrice', params.maxPrice);
-    if (page > 1) params.set('page', page.toString());
-    return `/dashboard/product${params.toString() ? `?${params.toString()}` : ''}`;
+    const urlParams = new URLSearchParams();
+    if (params.search) urlParams.set('search', params.search);
+    if (params.main_category && params.main_category !== 'all') urlParams.set('main_category', params.main_category);
+    if (params.minPrice) urlParams.set('minPrice', params.minPrice);
+    if (params.maxPrice) urlParams.set('maxPrice', params.maxPrice);
+    if (page > 1) urlParams.set('page', page.toString());
+    return `/dashboard/product${urlParams.toString() ? `?${urlParams.toString()}` : ''}`;
   };
 
-  // Show page range
+  // Page number range for display
   const maxVisiblePages = 5;
   let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
   let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
@@ -96,7 +94,7 @@ export default async function ProductPage({ searchParams }: PageProps) {
         </Link>
       </div>
 
-      {/* Filters */}
+      {/* Filters – client component */}
       <ProductFilters
         initialSearch={params.search || ''}
         initialMainCategory={params.main_category || 'all'}
@@ -117,7 +115,7 @@ export default async function ProductPage({ searchParams }: PageProps) {
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Price</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Stock</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Actions</th>
-              </tr>
+             </tr>
           </thead>
           <tbody>
             {products?.map((product) => (
@@ -163,7 +161,6 @@ export default async function ProductPage({ searchParams }: PageProps) {
       {/* Pagination */}
       {totalPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '24px' }}>
-          {/* Previous button */}
           {currentPage > 1 && (
             <Link
               href={buildPaginationUrl(currentPage - 1)}
@@ -179,8 +176,6 @@ export default async function ProductPage({ searchParams }: PageProps) {
               ← Previous
             </Link>
           )}
-
-          {/* Page numbers */}
           {pageNumbers.map((page) => (
             <Link
               key={page}
@@ -197,8 +192,6 @@ export default async function ProductPage({ searchParams }: PageProps) {
               {page}
             </Link>
           ))}
-
-          {/* Next button */}
           {currentPage < totalPages && (
             <Link
               href={buildPaginationUrl(currentPage + 1)}
