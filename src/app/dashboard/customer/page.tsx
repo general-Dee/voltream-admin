@@ -17,7 +17,6 @@ export default async function CustomersPage({ searchParams }: PageProps) {
   const currentPage = parseInt(params.page || '1', 10);
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
-  // Build query with search filter
   let query = supabase.from('customers').select('*, orders(total)', { count: 'exact' });
 
   if (params.search) {
@@ -31,14 +30,12 @@ export default async function CustomersPage({ searchParams }: PageProps) {
     .order('created_at', { ascending: false })
     .range(offset, offset + ITEMS_PER_PAGE - 1);
 
-  // Process stats
   const customersWithStats = customers?.map(customer => ({
     ...customer,
     orderCount: customer.orders?.length || 0,
     totalSpent: customer.orders?.reduce((sum: number, order: any) => sum + (order.total || 0), 0) || 0,
   }));
 
-  // Helper to build pagination URLs while keeping filters
   const buildPaginationUrl = (page: number) => {
     const urlParams = new URLSearchParams();
     if (params.search) urlParams.set('search', params.search);
@@ -46,7 +43,6 @@ export default async function CustomersPage({ searchParams }: PageProps) {
     return `/dashboard/customer${urlParams.toString() ? `?${urlParams.toString()}` : ''}`;
   };
 
-  // Page number range
   const maxVisiblePages = 5;
   let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
   let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
@@ -83,9 +79,9 @@ export default async function CustomersPage({ searchParams }: PageProps) {
         />
       </div>
 
-      {/* Customers table */}
-      <div style={{ backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      {/* Customers table with horizontal scroll */}
+      <div style={{ overflowX: 'auto', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Name</th>
@@ -95,7 +91,7 @@ export default async function CustomersPage({ searchParams }: PageProps) {
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Total Spent</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Joined</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Actions</th>
-             </tr>
+            </tr>
           </thead>
           <tbody>
             {customersWithStats?.map((customer) => (

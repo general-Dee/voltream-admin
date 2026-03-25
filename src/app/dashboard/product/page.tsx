@@ -22,7 +22,7 @@ export default async function ProductPage({ searchParams }: PageProps) {
   const currentPage = parseInt(params.page || '1', 10);
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
-  // Build the base query with filters
+  // Build the product query
   let query = supabase.from('products').select('*', { count: 'exact' });
 
   if (params.search) {
@@ -38,7 +38,6 @@ export default async function ProductPage({ searchParams }: PageProps) {
     query = query.lte('price', parseFloat(params.maxPrice));
   }
 
-  // Get total count and paginated data
   const { count: totalCount } = await query;
   const totalPages = Math.ceil((totalCount || 0) / ITEMS_PER_PAGE);
 
@@ -56,7 +55,6 @@ export default async function ProductPage({ searchParams }: PageProps) {
     ? categories.filter((item, index, self) => self.findIndex(i => i.main_category === item.main_category) === index)
     : [];
 
-  // Helper to build pagination URLs while keeping filters
   const buildPaginationUrl = (page: number) => {
     const urlParams = new URLSearchParams();
     if (params.search) urlParams.set('search', params.search);
@@ -67,7 +65,6 @@ export default async function ProductPage({ searchParams }: PageProps) {
     return `/dashboard/product${urlParams.toString() ? `?${urlParams.toString()}` : ''}`;
   };
 
-  // Page number range for display
   const maxVisiblePages = 5;
   let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
   let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
@@ -94,7 +91,7 @@ export default async function ProductPage({ searchParams }: PageProps) {
         </Link>
       </div>
 
-      {/* Filters – client component */}
+      {/* Filters */}
       <ProductFilters
         initialSearch={params.search || ''}
         initialMainCategory={params.main_category || 'all'}
@@ -103,9 +100,9 @@ export default async function ProductPage({ searchParams }: PageProps) {
         categories={uniqueCategories.map(c => c.main_category)}
       />
 
-      {/* Products table */}
-      <div style={{ backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      {/* Products table with horizontal scroll */}
+      <div style={{ overflowX: 'auto', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Image</th>
@@ -115,7 +112,7 @@ export default async function ProductPage({ searchParams }: PageProps) {
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Price</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Stock</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Actions</th>
-             </tr>
+              </tr>
           </thead>
           <tbody>
             {products?.map((product) => (

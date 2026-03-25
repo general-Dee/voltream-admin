@@ -20,7 +20,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
   const currentPage = parseInt(params.page || '1', 10);
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
-  // Build the query
+  // Build query with filters
   let query = supabase
     .from('orders')
     .select('*, customers(name, email)', { count: 'exact' });
@@ -42,21 +42,21 @@ export default async function OrdersPage({ searchParams }: PageProps) {
     .order('created_at', { ascending: false })
     .range(offset, offset + ITEMS_PER_PAGE - 1);
 
-  // Helper to build URL with current filters
+  // Helper to build URLs with filters
   const buildFilterUrl = (updates: Record<string, string | undefined>) => {
     const urlParams = new URLSearchParams();
-    if (params.status && params.status !== 'all') urlParams.set('status', params.status);
-    if (params.start_date) urlParams.set('start_date', params.start_date);
-    if (params.end_date) urlParams.set('end_date', params.end_date);
-    if (updates.page !== undefined) {
-      if (updates.page && updates.page !== '1') urlParams.set('page', updates.page);
-      else urlParams.delete('page');
-    }
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value) urlParams.set(key, value);
-      else urlParams.delete(key);
-    });
-    return `/dashboard/order${urlParams.toString() ? `?${urlParams.toString()}` : ''}`;
+    const newStatus = updates.status !== undefined ? updates.status : (params.status && params.status !== 'all' ? params.status : undefined);
+    const newStartDate = updates.start_date !== undefined ? updates.start_date : params.start_date;
+    const newEndDate = updates.end_date !== undefined ? updates.end_date : params.end_date;
+    const newPage = updates.page !== undefined ? updates.page : (currentPage > 1 ? currentPage.toString() : undefined);
+
+    if (newStatus) urlParams.set('status', newStatus);
+    if (newStartDate) urlParams.set('start_date', newStartDate);
+    if (newEndDate) urlParams.set('end_date', newEndDate);
+    if (newPage && newPage !== '1') urlParams.set('page', newPage);
+
+    const query = urlParams.toString();
+    return `/dashboard/order${query ? `?${query}` : ''}`;
   };
 
   // Page number range
@@ -68,13 +68,9 @@ export default async function OrdersPage({ searchParams }: PageProps) {
   }
   const pageNumbers = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
 
-  const hasFilters = params.status || params.start_date || params.end_date;
-
   return (
     <div style={{ padding: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 'bold' }}>Orders</h1>
-      </div>
+      <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px' }}>Orders</h1>
 
       {/* Filters */}
       <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -109,12 +105,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
             onChange={(e) => {
               window.location.href = buildFilterUrl({ start_date: e.target.value || undefined, page: '1' });
             }}
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '14px',
-            }}
+            style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}
           />
         </div>
         <div>
@@ -125,87 +116,41 @@ export default async function OrdersPage({ searchParams }: PageProps) {
             onChange={(e) => {
               window.location.href = buildFilterUrl({ end_date: e.target.value || undefined, page: '1' });
             }}
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '14px',
-            }}
+            style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}
           />
         </div>
-        {hasFilters && (
-          <Link
-            href="/dashboard/order"
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#6b7280',
-              color: 'white',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              fontSize: '14px',
-              alignSelf: 'center',
-            }}
-          >
-            Clear filters
-          </Link>
-        )}
       </div>
 
       {/* Bulk actions form */}
       <form action={bulkUpdateOrders} style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
         <div>
           <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Bulk Action</label>
-          <select
-            name="status"
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '14px',
-              backgroundColor: 'white',
-            }}
-          >
+          <select name="status" style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}>
             <option value="completed">Mark Completed</option>
             <option value="cancelled">Mark Cancelled</option>
           </select>
         </div>
         <button
           type="submit"
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#f97316',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-          }}
+          style={{ padding: '8px 16px', backgroundColor: '#f97316', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
         >
           Apply to Selected
         </button>
       </form>
 
-      {/* Orders table */}
-      <div style={{ backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      {/* Orders table with horizontal scroll */}
+      <div style={{ overflowX: 'auto', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>
-                <input
-                  type="checkbox"
-                  id="select-all"
-                  onClick={(e) => {
-                    const checkboxes = document.querySelectorAll('input[name="order_ids"]');
-                    checkboxes.forEach((cb: any) => (cb.checked = (e.target as HTMLInputElement).checked));
-                  }}
-                />
-              </th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Select</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Order ID</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Customer</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Total</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Status</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Date</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Actions</th>
-             </tr>
+            </tr>
           </thead>
           <tbody>
             {orders?.map((order) => (
