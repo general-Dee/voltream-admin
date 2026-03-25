@@ -9,14 +9,22 @@ interface PageProps {
     main_category?: string;
     minPrice?: string;
     maxPrice?: string;
+    page?: string;
   }>;
 }
+
+const ITEMS_PER_PAGE = 10;
 
 export default async function ProductPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const supabase = await createClient();
 
-  let query = supabase.from('products').select('*');
+  // Get current page (default 1)
+  const currentPage = parseInt(params.page || '1', 10);
+  const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+
+  // Build the query
+  let query = supabase.from('products').select('*', { count: 'exact' });
 
   if (params.search) {
     query = query.ilike('name', `%${params.search}%`);
@@ -31,8 +39,16 @@ export default async function ProductPage({ searchParams }: PageProps) {
     query = query.lte('price', parseFloat(params.maxPrice));
   }
 
-  const { data: products } = await query.order('created_at', { ascending: false });
+  // Get total count
+  const { count: totalCount } = await query;
+  const totalPages = Math.ceil((totalCount || 0) / ITEMS_PER_PAGE);
 
+  // Fetch paginated products
+  const { data: products } = await query
+    .order('created_at', { ascending: false })
+    .range(offset, offset + ITEMS_PER_PAGE - 1);
+
+  // Get distinct main categories for the dropdown
   const { data: categories } = await supabase
     .from('products')
     .select('main_category')
@@ -41,6 +57,26 @@ export default async function ProductPage({ searchParams }: PageProps) {
   const uniqueCategories = categories
     ? categories.filter((item, index, self) => self.findIndex(i => i.main_category === item.main_category) === index)
     : [];
+
+  // Helper to build pagination URLs with filters
+  const buildPaginationUrl = (page: number) => {
+    const params = new URLSearchParams();
+    if (params.search) params.set('search', params.search);
+    if (params.main_category && params.main_category !== 'all') params.set('main_category', params.main_category);
+    if (params.minPrice) params.set('minPrice', params.minPrice);
+    if (params.maxPrice) params.set('maxPrice', params.maxPrice);
+    if (page > 1) params.set('page', page.toString());
+    return `/dashboard/product${params.toString() ? `?${params.toString()}` : ''}`;
+  };
+
+  // Show page range
+  const maxVisiblePages = 5;
+  let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+  let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+  if (endPage - startPage + 1 < maxVisiblePages) {
+    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+  }
+  const pageNumbers = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
 
   return (
     <div style={{ padding: '24px' }}>
@@ -60,6 +96,7 @@ export default async function ProductPage({ searchParams }: PageProps) {
         </Link>
       </div>
 
+      {/* Filters */}
       <ProductFilters
         initialSearch={params.search || ''}
         initialMainCategory={params.main_category || 'all'}
@@ -68,6 +105,7 @@ export default async function ProductPage({ searchParams }: PageProps) {
         categories={uniqueCategories.map(c => c.main_category)}
       />
 
+      {/* Products table */}
       <div style={{ backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -79,7 +117,7 @@ export default async function ProductPage({ searchParams }: PageProps) {
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Price</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Stock</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Actions</th>
-             </tr>
+              </tr>
           </thead>
           <tbody>
             {products?.map((product) => (
@@ -94,7 +132,7 @@ export default async function ProductPage({ searchParams }: PageProps) {
                   ) : (
                     <span style={{ color: '#9ca3af', fontSize: '14px' }}>No image</span>
                   )}
-                 </td>
+                </td>
                 <td style={{ padding: '12px 16px' }}>{product.name}</td>
                 <td style={{ padding: '12px 16px' }}>{product.main_category || '—'}</td>
                 <td style={{ padding: '12px 16px' }}>{product.sub_category || '—'}</td>
@@ -121,6 +159,63 @@ export default async function ProductPage({ searchParams }: PageProps) {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '24px' }}>
+          {/* Previous button */}
+          {currentPage > 1 && (
+            <Link
+              href={buildPaginationUrl(currentPage - 1)}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #e5e7eb',
+                borderRadius: '6px',
+                backgroundColor: 'white',
+                textDecoration: 'none',
+                color: '#374151',
+              }}
+            >
+              ← Previous
+            </Link>
+          )}
+
+          {/* Page numbers */}
+          {pageNumbers.map((page) => (
+            <Link
+              key={page}
+              href={buildPaginationUrl(page)}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #e5e7eb',
+                borderRadius: '6px',
+                backgroundColor: page === currentPage ? '#f97316' : 'white',
+                color: page === currentPage ? 'white' : '#374151',
+                textDecoration: 'none',
+              }}
+            >
+              {page}
+            </Link>
+          ))}
+
+          {/* Next button */}
+          {currentPage < totalPages && (
+            <Link
+              href={buildPaginationUrl(currentPage + 1)}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #e5e7eb',
+                borderRadius: '6px',
+                backgroundColor: 'white',
+                textDecoration: 'none',
+                color: '#374151',
+              }}
+            >
+              Next →
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   );
 }
