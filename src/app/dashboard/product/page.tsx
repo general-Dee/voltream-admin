@@ -1,12 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import DeleteButton from '@/components/DeleteButton';
-import ProductFilters from './ProductFilters'; // <-- import the client component
+import ProductFilters from './ProductFilters';
 
 interface PageProps {
   searchParams: Promise<{
     search?: string;
-    category?: string;
+    main_category?: string;
     minPrice?: string;
     maxPrice?: string;
   }>;
@@ -16,14 +16,13 @@ export default async function ProductPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const supabase = await createClient();
 
-  // Build the product query
   let query = supabase.from('products').select('*');
 
   if (params.search) {
     query = query.ilike('name', `%${params.search}%`);
   }
-  if (params.category && params.category !== 'all') {
-    query = query.eq('category', params.category);
+  if (params.main_category && params.main_category !== 'all') {
+    query = query.eq('main_category', params.main_category);
   }
   if (params.minPrice) {
     query = query.gte('price', parseFloat(params.minPrice));
@@ -34,14 +33,13 @@ export default async function ProductPage({ searchParams }: PageProps) {
 
   const { data: products } = await query.order('created_at', { ascending: false });
 
-  // Get distinct categories
   const { data: categories } = await supabase
     .from('products')
-    .select('category')
-    .not('category', 'is', null)
-    .order('category');
+    .select('main_category')
+    .not('main_category', 'is', null)
+    .order('main_category');
   const uniqueCategories = categories
-    ? categories.filter((item, index, self) => self.findIndex(i => i.category === item.category) === index)
+    ? categories.filter((item, index, self) => self.findIndex(i => i.main_category === item.main_category) === index)
     : [];
 
   return (
@@ -62,27 +60,26 @@ export default async function ProductPage({ searchParams }: PageProps) {
         </Link>
       </div>
 
-      {/* Client‑side filter component */}
       <ProductFilters
         initialSearch={params.search || ''}
-        initialCategory={params.category || 'all'}
+        initialMainCategory={params.main_category || 'all'}
         initialMinPrice={params.minPrice || ''}
         initialMaxPrice={params.maxPrice || ''}
-        categories={uniqueCategories}
+        categories={uniqueCategories.map(c => c.main_category)}
       />
 
-      {/* Products table (unchanged) */}
       <div style={{ backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Image</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Name</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Category</th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Main Category</th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Subcategory</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Price</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Stock</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Actions</th>
-              </tr>
+             </tr>
           </thead>
           <tbody>
             {products?.map((product) => (
@@ -97,9 +94,10 @@ export default async function ProductPage({ searchParams }: PageProps) {
                   ) : (
                     <span style={{ color: '#9ca3af', fontSize: '14px' }}>No image</span>
                   )}
-                </td>
+                 </td>
                 <td style={{ padding: '12px 16px' }}>{product.name}</td>
-                <td style={{ padding: '12px 16px' }}>{product.category}</td>
+                <td style={{ padding: '12px 16px' }}>{product.main_category || '—'}</td>
+                <td style={{ padding: '12px 16px' }}>{product.sub_category || '—'}</td>
                 <td style={{ padding: '12px 16px' }}>₦{product.price.toLocaleString()}</td>
                 <td style={{ padding: '12px 16px' }}>{product.stock}</td>
                 <td style={{ padding: '12px 16px' }}>

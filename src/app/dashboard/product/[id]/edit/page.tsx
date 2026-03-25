@@ -4,33 +4,46 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
+const MAIN_CATEGORIES = ['Gadgets', 'Fitness', 'Clothing', 'Shoes'];
+
+const SUBCATEGORIES: Record<string, string[]> = {
+  Gadgets: [
+    'Phones', 'Tablets', 'Laptops', 'Headphones',
+    'Speakers', 'Smart Watches', 'Solar Solutions'
+  ],
+  Fitness: [],
+  Clothing: [],
+  Shoes: [],
+};
+
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const supabase = createClient();
   const [product, setProduct] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
+  const [mainCategory, setMainCategory] = useState('Gadgets');
   const [formData, setFormData] = useState({
     name: '',
-    category: '',
     price: '',
     stock: '',
     description: '',
+    sub_category: '',
   });
 
-  // Fetch product data
   useEffect(() => {
     const fetchProduct = async () => {
       const { id } = await params;
       const { data } = await supabase.from('products').select('*').eq('id', id).single();
       if (data) {
         setProduct(data);
+        setMainCategory(data.main_category || 'Gadgets');
         setFormData({
           name: data.name,
-          category: data.category,
           price: data.price.toString(),
           stock: data.stock.toString(),
           description: data.description || '',
+          sub_category: data.sub_category || '',
         });
         setImageUrl(data.image_url || '');
       }
@@ -38,7 +51,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     fetchProduct();
   }, [params, supabase]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: any) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -69,16 +82,22 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     const updates = {
-      ...formData,
+      name: formData.name,
+      main_category: mainCategory,
+      sub_category: formData.sub_category,
       price: parseFloat(formData.price),
       stock: parseInt(formData.stock),
+      description: formData.description,
       image_url: imageUrl || null,
     };
+
     const { error } = await supabase
       .from('products')
       .update(updates)
       .eq('id', product.id);
+
     if (error) {
       alert(error.message);
       return;
@@ -89,11 +108,13 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
   if (!product) return <div>Loading...</div>;
 
+  const subcategoryOptions = SUBCATEGORIES[mainCategory] || [];
+
   return (
     <div style={{ padding: '24px', maxWidth: '600px', margin: '0 auto' }}>
       <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px' }}>Edit Product</h1>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {/* Same fields as new product */}
+        {/* Name */}
         <div>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Name</label>
           <input
@@ -105,17 +126,49 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
           />
         </div>
+
+        {/* Main Category */}
         <div>
-          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Category</label>
-          <input
-            type="text"
-            name="category"
-            value={formData.category}
-            onChange={handleChange}
-            required
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Main Category</label>
+          <select
+            value={mainCategory}
+            onChange={(e) => setMainCategory(e.target.value)}
             style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
-          />
+          >
+            {MAIN_CATEGORIES.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
         </div>
+
+        {/* Subcategory */}
+        <div>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Subcategory</label>
+          {subcategoryOptions.length > 0 ? (
+            <select
+              name="sub_category"
+              value={formData.sub_category}
+              onChange={handleChange}
+              style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
+            >
+              <option value="">Select a subcategory</option>
+              {subcategoryOptions.map(sub => (
+                <option key={sub} value={sub}>{sub}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              name="sub_category"
+              placeholder="Enter subcategory (optional)"
+              value={formData.sub_category}
+              onChange={handleChange}
+              style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
+            />
+          )}
+        </div>
+
+        {/* Price */}
         <div>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Price (₦)</label>
           <input
@@ -128,6 +181,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
           />
         </div>
+
+        {/* Stock */}
         <div>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Stock</label>
           <input
@@ -139,6 +194,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
           />
         </div>
+
+        {/* Description */}
         <div>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Description</label>
           <textarea
@@ -149,6 +206,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
           />
         </div>
+
+        {/* Image Upload */}
         <div>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Product Image</label>
           <input
@@ -165,6 +224,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             </div>
           )}
         </div>
+
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
           <a
             href="/dashboard/product"

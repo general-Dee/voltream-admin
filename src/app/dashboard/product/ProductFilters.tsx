@@ -5,28 +5,28 @@ import Link from 'next/link';
 
 interface ProductFiltersProps {
   initialSearch: string;
-  initialCategory: string;
+  initialMainCategory: string;
   initialMinPrice: string;
   initialMaxPrice: string;
-  categories: Array<{ category: string }>;
+  categories: string[];
 }
 
 export default function ProductFilters({
   initialSearch,
-  initialCategory,
+  initialMainCategory,
   initialMinPrice,
   initialMaxPrice,
   categories,
 }: ProductFiltersProps) {
   const [search, setSearch] = useState(initialSearch);
-  const [category, setCategory] = useState(initialCategory);
+  const [mainCategory, setMainCategory] = useState(initialMainCategory);
   const [minPrice, setMinPrice] = useState(initialMinPrice);
   const [maxPrice, setMaxPrice] = useState(initialMaxPrice);
 
   const buildUrl = () => {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
-    if (category && category !== 'all') params.set('category', category);
+    if (mainCategory && mainCategory !== 'all') params.set('main_category', mainCategory);
     if (minPrice) params.set('minPrice', minPrice);
     if (maxPrice) params.set('maxPrice', maxPrice);
     const query = params.toString();
@@ -34,11 +34,10 @@ export default function ProductFilters({
   };
 
   useEffect(() => {
-    // Navigate when any filter changes
     window.location.href = buildUrl();
-  }, [search, category, minPrice, maxPrice]);
+  }, [search, mainCategory, minPrice, maxPrice]);
 
-  const hasFilters = search || (category && category !== 'all') || minPrice || maxPrice;
+  const hasFilters = search || (mainCategory && mainCategory !== 'all') || minPrice || maxPrice;
 
   return (
     <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -58,11 +57,12 @@ export default function ProductFilters({
           }}
         />
       </div>
+
       <div>
-        <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Category</label>
+        <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Main Category</label>
         <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          value={mainCategory}
+          onChange={(e) => setMainCategory(e.target.value)}
           style={{
             padding: '8px 12px',
             border: '1px solid #d1d5db',
@@ -74,12 +74,13 @@ export default function ProductFilters({
         >
           <option value="all">All categories</option>
           {categories.map((cat) => (
-            <option key={cat.category} value={cat.category}>
-              {cat.category}
+            <option key={cat} value={cat}>
+              {cat}
             </option>
           ))}
         </select>
       </div>
+
       <div>
         <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Min Price (₦)</label>
         <input
@@ -96,6 +97,7 @@ export default function ProductFilters({
           }}
         />
       </div>
+
       <div>
         <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Max Price (₦)</label>
         <input
@@ -112,6 +114,7 @@ export default function ProductFilters({
           }}
         />
       </div>
+
       {hasFilters && (
         <Link
           href="/dashboard/product"

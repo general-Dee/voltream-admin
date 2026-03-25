@@ -4,20 +4,33 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
+const MAIN_CATEGORIES = ['Gadgets', 'Fitness', 'Clothing', 'Shoes'];
+
+const SUBCATEGORIES: Record<string, string[]> = {
+  Gadgets: [
+    'Phones', 'Tablets', 'Laptops', 'Headphones',
+    'Speakers', 'Smart Watches', 'Solar Solutions'
+  ],
+  Fitness: [],
+  Clothing: [],
+  Shoes: [],
+};
+
 export default function NewProductPage() {
   const router = useRouter();
   const supabase = createClient();
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
+  const [mainCategory, setMainCategory] = useState('Gadgets');
   const [formData, setFormData] = useState({
     name: '',
-    category: '',
     price: '',
     stock: '',
     description: '',
+    sub_category: '',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: any) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -48,11 +61,14 @@ export default function NewProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Prepare product data with image_url
+
     const product = {
-      ...formData,
+      name: formData.name,
+      main_category: mainCategory,
+      sub_category: formData.sub_category,
       price: parseFloat(formData.price),
       stock: parseInt(formData.stock),
+      description: formData.description,
       image_url: imageUrl || null,
     };
 
@@ -64,6 +80,8 @@ export default function NewProductPage() {
     router.push('/dashboard/product');
     router.refresh();
   };
+
+  const subcategoryOptions = SUBCATEGORIES[mainCategory] || [];
 
   return (
     <div style={{ padding: '24px', maxWidth: '600px', margin: '0 auto' }}>
@@ -81,18 +99,48 @@ export default function NewProductPage() {
             style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
           />
         </div>
-        {/* Category */}
+
+        {/* Main Category */}
         <div>
-          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Category</label>
-          <input
-            type="text"
-            name="category"
-            value={formData.category}
-            onChange={handleChange}
-            required
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Main Category</label>
+          <select
+            value={mainCategory}
+            onChange={(e) => setMainCategory(e.target.value)}
             style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
-          />
+          >
+            {MAIN_CATEGORIES.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
         </div>
+
+        {/* Subcategory */}
+        <div>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Subcategory</label>
+          {subcategoryOptions.length > 0 ? (
+            <select
+              name="sub_category"
+              value={formData.sub_category}
+              onChange={handleChange}
+              style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
+            >
+              <option value="">Select a subcategory</option>
+              {subcategoryOptions.map(sub => (
+                <option key={sub} value={sub}>{sub}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              name="sub_category"
+              placeholder="Enter subcategory (optional)"
+              value={formData.sub_category}
+              onChange={handleChange}
+              style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
+            />
+          )}
+        </div>
+
         {/* Price */}
         <div>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Price (₦)</label>
@@ -106,6 +154,7 @@ export default function NewProductPage() {
             style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
           />
         </div>
+
         {/* Stock */}
         <div>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Stock</label>
@@ -118,6 +167,7 @@ export default function NewProductPage() {
             style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
           />
         </div>
+
         {/* Description */}
         <div>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Description</label>
@@ -129,6 +179,7 @@ export default function NewProductPage() {
             style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px' }}
           />
         </div>
+
         {/* Image Upload */}
         <div>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Product Image</label>
@@ -146,6 +197,7 @@ export default function NewProductPage() {
             </div>
           )}
         </div>
+
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
           <a
             href="/dashboard/product"
