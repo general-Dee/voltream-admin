@@ -1,9 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
+import { bulkUpdateOrders } from '@/app/actions/orders';
 
 interface PageProps {
   searchParams: Promise<{
     status?: string;
+    start_date?: string;
+    end_date?: string;
     page?: string;
   }>;
 }
@@ -17,11 +20,19 @@ export default async function OrdersPage({ searchParams }: PageProps) {
   const currentPage = parseInt(params.page || '1', 10);
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
-  // Build query with filters
-  let query = supabase.from('orders').select('*, customers(name, email)', { count: 'exact' });
+  // Build the query
+  let query = supabase
+    .from('orders')
+    .select('*, customers(name, email)', { count: 'exact' });
 
   if (params.status && params.status !== 'all') {
     query = query.eq('status', params.status);
+  }
+  if (params.start_date) {
+    query = query.gte('created_at', `${params.start_date}T00:00:00`);
+  }
+  if (params.end_date) {
+    query = query.lte('created_at', `${params.end_date}T23:59:59`);
   }
 
   const { count: totalCount } = await query;
@@ -31,11 +42,20 @@ export default async function OrdersPage({ searchParams }: PageProps) {
     .order('created_at', { ascending: false })
     .range(offset, offset + ITEMS_PER_PAGE - 1);
 
-  // Helper to build pagination URLs while keeping filters
-  const buildPaginationUrl = (page: number) => {
+  // Helper to build URL with current filters
+  const buildFilterUrl = (updates: Record<string, string | undefined>) => {
     const urlParams = new URLSearchParams();
     if (params.status && params.status !== 'all') urlParams.set('status', params.status);
-    if (page > 1) urlParams.set('page', page.toString());
+    if (params.start_date) urlParams.set('start_date', params.start_date);
+    if (params.end_date) urlParams.set('end_date', params.end_date);
+    if (updates.page !== undefined) {
+      if (updates.page && updates.page !== '1') urlParams.set('page', updates.page);
+      else urlParams.delete('page');
+    }
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value) urlParams.set(key, value);
+      else urlParams.delete(key);
+    });
     return `/dashboard/order${urlParams.toString() ? `?${urlParams.toString()}` : ''}`;
   };
 
@@ -48,43 +68,137 @@ export default async function OrdersPage({ searchParams }: PageProps) {
   }
   const pageNumbers = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
 
+  const hasFilters = params.status || params.start_date || params.end_date;
+
   return (
     <div style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h1 style={{ fontSize: '24px', fontWeight: 'bold' }}>Orders</h1>
       </div>
 
-      {/* Status filter */}
-      <div style={{ marginBottom: '24px' }}>
-        <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Filter by Status</label>
-        <select
-          value={params.status || 'all'}
-          onChange={(e) => {
-            const newStatus = e.target.value === 'all' ? undefined : e.target.value;
-            const url = `/dashboard/order${newStatus ? `?status=${newStatus}` : ''}`;
-            window.location.href = url;
-          }}
+      {/* Filters */}
+      <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Status</label>
+          <select
+            value={params.status || 'all'}
+            onChange={(e) => {
+              const newStatus = e.target.value === 'all' ? undefined : e.target.value;
+              window.location.href = buildFilterUrl({ status: newStatus, page: '1' });
+            }}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '14px',
+              backgroundColor: 'white',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="all">All orders</option>
+            <option value="pending">Pending</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>From Date</label>
+          <input
+            type="date"
+            value={params.start_date || ''}
+            onChange={(e) => {
+              window.location.href = buildFilterUrl({ start_date: e.target.value || undefined, page: '1' });
+            }}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '14px',
+            }}
+          />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>To Date</label>
+          <input
+            type="date"
+            value={params.end_date || ''}
+            onChange={(e) => {
+              window.location.href = buildFilterUrl({ end_date: e.target.value || undefined, page: '1' });
+            }}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '14px',
+            }}
+          />
+        </div>
+        {hasFilters && (
+          <Link
+            href="/dashboard/order"
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#6b7280',
+              color: 'white',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontSize: '14px',
+              alignSelf: 'center',
+            }}
+          >
+            Clear filters
+          </Link>
+        )}
+      </div>
+
+      {/* Bulk actions form */}
+      <form action={bulkUpdateOrders} style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Bulk Action</label>
+          <select
+            name="status"
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '14px',
+              backgroundColor: 'white',
+            }}
+          >
+            <option value="completed">Mark Completed</option>
+            <option value="cancelled">Mark Cancelled</option>
+          </select>
+        </div>
+        <button
+          type="submit"
           style={{
-            padding: '8px 12px',
-            border: '1px solid #d1d5db',
+            padding: '8px 16px',
+            backgroundColor: '#f97316',
+            color: 'white',
+            border: 'none',
             borderRadius: '6px',
-            fontSize: '14px',
-            backgroundColor: 'white',
             cursor: 'pointer',
           }}
         >
-          <option value="all">All orders</option>
-          <option value="pending">Pending</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-      </div>
+          Apply to Selected
+        </button>
+      </form>
 
       {/* Orders table */}
       <div style={{ backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>
+                <input
+                  type="checkbox"
+                  id="select-all"
+                  onClick={(e) => {
+                    const checkboxes = document.querySelectorAll('input[name="order_ids"]');
+                    checkboxes.forEach((cb: any) => (cb.checked = (e.target as HTMLInputElement).checked));
+                  }}
+                />
+              </th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Order ID</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Customer</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '500', color: '#6b7280' }}>Total</th>
@@ -96,6 +210,9 @@ export default async function OrdersPage({ searchParams }: PageProps) {
           <tbody>
             {orders?.map((order) => (
               <tr key={order.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                <td style={{ padding: '12px 16px' }}>
+                  <input type="checkbox" name="order_ids" value={order.id} />
+                </td>
                 <td style={{ padding: '12px 16px' }}>{order.id.slice(0, 8)}…</td>
                 <td style={{ padding: '12px 16px' }}>
                   {order.customers?.[0]?.name || order.customers?.[0]?.email || 'Guest'}
@@ -143,7 +260,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '24px' }}>
           {currentPage > 1 && (
             <Link
-              href={buildPaginationUrl(currentPage - 1)}
+              href={buildFilterUrl({ page: (currentPage - 1).toString() })}
               style={{
                 padding: '8px 12px',
                 border: '1px solid #e5e7eb',
@@ -159,7 +276,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
           {pageNumbers.map((page) => (
             <Link
               key={page}
-              href={buildPaginationUrl(page)}
+              href={buildFilterUrl({ page: page.toString() })}
               style={{
                 padding: '8px 12px',
                 border: '1px solid #e5e7eb',
@@ -174,7 +291,7 @@ export default async function OrdersPage({ searchParams }: PageProps) {
           ))}
           {currentPage < totalPages && (
             <Link
-              href={buildPaginationUrl(currentPage + 1)}
+              href={buildFilterUrl({ page: (currentPage + 1).toString() })}
               style={{
                 padding: '8px 12px',
                 border: '1px solid #e5e7eb',

@@ -41,6 +41,7 @@ export default function ProductFilters({
 
   return (
     <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      {/* Search */}
       <div>
         <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Search</label>
         <input
@@ -58,6 +59,7 @@ export default function ProductFilters({
         />
       </div>
 
+      {/* Main Category */}
       <div>
         <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Main Category</label>
         <select
@@ -81,6 +83,7 @@ export default function ProductFilters({
         </select>
       </div>
 
+      {/* Min Price */}
       <div>
         <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Min Price (₦)</label>
         <input
@@ -98,6 +101,7 @@ export default function ProductFilters({
         />
       </div>
 
+      {/* Max Price */}
       <div>
         <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>Max Price (₦)</label>
         <input
